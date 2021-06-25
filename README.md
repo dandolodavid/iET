@@ -6,3 +6,14 @@ It could be use to evaluate a probability target (i.e. conversion rate) but also
 The attribution values obtained with iET are in the same scale of the original target, making easy the comparison and the quantification of the impact of each touchpoint.
 
 
+## INSTALL
+
+`pip install iET`
+
+## RESULTS 
+
+![image](img/probs_plot.png)
+![image](img/expectedTarget.png)
+![image](img/transaction.png)
+![image](img/attribution_plot.png)
+
