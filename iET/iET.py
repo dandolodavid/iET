@@ -98,6 +98,8 @@ class iET():
         z_text = self._transaction_df.astype(str).values
         
         fig = ff.create_annotated_heatmap(z, x=x, y=y, annotation_text=z_text, colorscale = 'bluered')
+        fig['layout']['yaxis']['autorange'] = "reversed"
+        
         return fig
     
     def plot_ExT(self):
