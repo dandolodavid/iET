@@ -27,7 +27,7 @@ def target_reached_probability( data, client_session_id, touchpoint, target):
 
     #all occurences of all the combinations client/session + touchpoint 
     combinations = data.drop_duplicates( subset =  [ client_session_id, touchpoint ] )[[ client_session_id, touchpoint ]]
-    target_combinations = data.loc[ data[target] != 0 ].drop_duplicates( subset =  [ client_session_id, touchpoint ] )[[ client_session_id, touchpoint ]]
+    target_combinations = data.drop_duplicates( subset =  [ client_session_id, touchpoint ] ).loc[ data[target] != 0 ][[ client_session_id, touchpoint ]]
 
     base = combinations.groupby(touchpoint).count()[[client_session_id]]
     has_target = target_combinations.groupby(touchpoint).count()[[client_session_id]]
@@ -43,7 +43,7 @@ def quit_probability( data, client_session_id, touchpoint, target):
     Compute the probability to be last touchpoint before quit 
 
     1) Find unique client_session + touchpoint combinations
-    2) Groups by touchpoint and count the session with target reached
+    2) Groups by touchpoint and count the session with target not reached
     3) Compute the target probability
     
     Parameters:
@@ -60,7 +60,7 @@ def quit_probability( data, client_session_id, touchpoint, target):
 
     #all occurences of all the combinations client/session + touchpoint for all the data and only for zero data
     combinations = data.drop_duplicates( subset =  [ client_session_id, touchpoint ] )[[ client_session_id, touchpoint ]]
-    quit_combinations = data.loc[ data[target] == 0 ].drop_duplicates( subset =  [ client_session_id ], keep = 'last' )[[ client_session_id, touchpoint ]]
+    quit_combinations = data.drop_duplicates( subset =  [ client_session_id ], keep = 'last' ).loc[ data[target] == 0 ][[ client_session_id, touchpoint ]]
 
     base = combinations.groupby(touchpoint).count()[[client_session_id]]
     has_quit = quit_combinations.groupby(touchpoint).count()[[client_session_id]]
