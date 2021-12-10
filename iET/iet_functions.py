@@ -26,10 +26,9 @@ def target_reached_probability( data, client_session_id, touchpoint, target):
     '''
 
     #all occurences of all the combinations client/session + touchpoint 
-    combinations = data.drop_duplicates( subset =  [ client_session_id, touchpoint ] )[[ client_session_id, touchpoint ]]
     target_combinations = data.drop_duplicates( subset =  [ client_session_id, touchpoint ], keep = 'last' ).loc[ data[target] != 0 ][[ client_session_id, touchpoint ]]
 
-    base = combinations.groupby(touchpoint).count()[[client_session_id]]
+    base = data.groupby(touchpoint).count()[[client_session_id]]
     has_target = target_combinations.groupby(touchpoint).count()[[client_session_id]]
 
     touchpoint_target_prob = base.merge(has_target, left_index=True, right_index=True, how='left').fillna(0)
@@ -59,10 +58,9 @@ def quit_probability( data, client_session_id, touchpoint, target):
     '''
 
     #all occurences of all the combinations client/session + touchpoint for all the data and only for zero data
-    combinations = data.drop_duplicates( subset =  [ client_session_id, touchpoint ] )[[ client_session_id, touchpoint ]]
     quit_combinations = data.drop_duplicates( subset =  [ client_session_id ], keep = 'last' ).loc[ data[target] == 0 ][[ client_session_id, touchpoint ]]
 
-    base = combinations.groupby(touchpoint).count()[[client_session_id]]
+    base = data.groupby(touchpoint).count()[[client_session_id]]
     has_quit = quit_combinations.groupby(touchpoint).count()[[client_session_id]]
 
     touchpoint_quit_prob = base.merge(has_quit, left_index=True, right_index=True, how='left').fillna(0)
