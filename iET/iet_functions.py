@@ -27,7 +27,7 @@ def target_reached_probability( data, client_session_id, touchpoint, target):
 
     #all occurences of all the combinations client/session + touchpoint 
     combinations = data.drop_duplicates( subset =  [ client_session_id, touchpoint ] )[[ client_session_id, touchpoint ]]
-    target_combinations = data.drop_duplicates( subset =  [ client_session_id, touchpoint ] ).loc[ data[target] != 0 ][[ client_session_id, touchpoint ]]
+    target_combinations = data.drop_duplicates( subset =  [ client_session_id, touchpoint ], keep = 'last' ).loc[ data[target] != 0 ][[ client_session_id, touchpoint ]]
 
     base = combinations.groupby(touchpoint).count()[[client_session_id]]
     has_target = target_combinations.groupby(touchpoint).count()[[client_session_id]]
