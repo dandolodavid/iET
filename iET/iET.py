@@ -8,12 +8,13 @@ from iET.iet_functions import *
 
 class iET():
 
-    def __init__(self, touchpoint_colname, target_colname, client_id_colname, session_colname = None, use_top_k = None):
+    def __init__(self, touchpoint_colname, target_colname, client_id_colname, session_colname = None, use_top_k = None, accept_consecutive_touchpoint = False):
         self._touchpoint_colname = touchpoint_colname
         self._target_colname = target_colname
         self._client_id_colname = client_id_colname
         self._session_colname = session_colname
         self._top_k = use_top_k
+        self._accept_consecutive_touchpoint = accept_consecutive_touchpoint
 
     def estimate_proba(self, dataframe ):
         '''
@@ -47,7 +48,7 @@ class iET():
         quit_df = quit_probability( data, self._client_session_colname, self._touchpoint_colname, self._target_colname )
 
         #estimate transaction matrix
-        self._transaction_df, self._count_transaction_df = estimate_transaction_matrix( data, self._client_id_colname, self._client_session_colname,  self._touchpoint_colname, self._target_colname )
+        self._transaction_df, self._count_transaction_df = estimate_transaction_matrix( data, self._client_id_colname, self._client_session_colname,  self._touchpoint_colname, self._target_colname, self._accept_consecutive_touchpoint )
 
         #compute move proabability
         move_df = move_probabilities(target_df, quit_df)
@@ -133,7 +134,7 @@ class iET():
         '''
         Calculate the attribution for each line of the dataset.
         For each user we compute the probability associated to his journey, with moving probs unitl we reach the target touchpoint
-        The probs are then normalized and multiplied for the 
+        The probs are then normalized and multiplied for the target value
         '''        
         data = dataframe.copy()
         #if session is used we create a new key that is the joined of client id and session id
@@ -172,13 +173,13 @@ class iET():
                         t_probs.append( self._transaction_df[ tmp.iloc[i][self._touchpoint_colname] ][tmp.iloc[i+1][self._touchpoint_colname]] )
                         m_probs.append( self._final_df.loc[tmp.iloc[i][self._touchpoint_colname]].move_prob )
 
-                weights = list( np.array(t_probs)*np.array(m_probs) ) + target_probs
+                weights = list( np.array(t_probs) * np.array(m_probs) ) + target_probs
                 
-                attribution_values =  weights/np.sum(weights) *tmp[self._target_colname].sum()
+                attribution_values =  weights/np.sum(weights) * tmp[self._target_colname].sum()
                 out.loc[ tmp.index.tolist(), 'iET_attribution' ] = attribution_values
 
         return out
-        
+
     def compute_session_based_on_target(self, dataframe):
         '''
         Compute the session based on the revenue. One session end when the user complete the target and a new session begin 
