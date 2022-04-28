@@ -170,7 +170,7 @@ class iET():
                     if i == tmp.shape[0] - 1:
                         target_probs.append( self._final_df.loc[tmp.iloc[i][self._touchpoint_colname]]['target_prob'] )
                     else:
-                        t_probs.append( self._transaction_df[ tmp.iloc[i][self._touchpoint_colname] ][tmp.iloc[i+1][self._touchpoint_colname]] )
+                        t_probs.append( self._transaction_df.loc[ tmp.iloc[i][self._touchpoint_colname] ][tmp.iloc[i+1][self._touchpoint_colname]] )
                         m_probs.append( self._final_df.loc[tmp.iloc[i][self._touchpoint_colname]].move_prob )
 
                 weights = list( np.array(t_probs) * np.array(m_probs) ) + target_probs
