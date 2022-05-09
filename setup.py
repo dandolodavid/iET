@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='iET',
-    version='1.2.0',    
+    version='1.2.2',    
     description='iET - iterative Expected Target',
     url='https://github.com/dandolodavid/iET',
     author='Dandolo David',

@@ -154,8 +154,11 @@ class iET():
         
         out = data.copy()
         out['iET_attribution'] = 0
+        
+        #detect only users to 
+        client_session_with_transaction = data.loc[self._target_colname > 0][self._client_session_colname].unique()
 
-        for user_id in tqdm(data[self._client_session_colname].unique()):
+        for user_id in tqdm(client_session_with_transaction):
             
             tmp = data.loc[ data[self._client_session_colname] == user_id ].copy()
 
@@ -180,7 +183,7 @@ class iET():
 
         return out
 
-    def compute_session_based_on_target(self, dataframe):
+    def compute_session(dataframe, time_column, max_delta_days = 7, additional_sorting_columns = None ):
         '''
         Compute the session based on the revenue. One session end when the user complete the target and a new session begin 
         from the successive action
@@ -188,6 +191,14 @@ class iET():
         Parameters:
         ------------
         dataframe: pd.DataFrame
+            dataframe
+        time_column: str
+            name of the comlumn with the timestamp
+        max_delta_days: int
+            max number of consecutive days without any actions to consider the end of the session
+        additional_sorting_columns : [str]
+            list of additional columns to use while sorting the dataframe (user_column + additional_sorting + time_column)
+    
 
         Returns:
         -----------
@@ -195,46 +206,32 @@ class iET():
 
         '''
 
-        session_list = []
-        index_list = []
-        for user_id in tqdm(dataframe[self._client_id_colname].unique()):
-            ses = 1
-            tmp = dataframe.loc[dataframe[self._client_id_colname] == user_id ]
-            idxs = tmp.loc[tmp[self._target_colname] > 0 ].index
-            
-            user_session = []
-            
-            if len(idxs)>0:
-                for i in range(0,len(idxs)):
-                    if i == 0:
-                        new_ses = list( np.repeat(ses, len(tmp.loc[ : idxs[i] ] )) ) 
-                    else:
-                        new_ses = list( np.repeat(ses, len(tmp.loc[ idxs[i-1]+1 : idxs[i] ])) )
-                    
-                    user_session = user_session + new_ses
-                    ses = ses+1
-                    
-                    if i == len(idxs)-1 and len(user_session) < len(tmp) :
-                        new_ses = list( np.repeat(ses, len(tmp.loc[ idxs[i]+1 : ])) )
-                        user_session = user_session + new_ses  
-            else:
-                user_session = user_session + list( np.repeat(ses, len(tmp) ) )
-            
-            index_list = index_list + tmp.index.tolist()
-            session_list = session_list + user_session
-                    
-        session_df = pd.DataFrame( { 'session':session_list }, index= index_list )
+        if additional_sorting_columns is None:
+            additional_sorting_columns = []
+        
+        sorting_columns = [self._client_id_colname ] + additional_sorting_columns + [time_column]
+        grouping_columns = [self._client_id_colname ] + additional_sorting_columns
+        
+        data = dataframe.sort_values(sorting_columns).copy().reset_index()
+        data[time_column] = pd.to_datetime(data[time_column])
+        
+        
+        data['time_delta'] = data.groupby(grouping_columns)[time_column].diff().fillna(pd.Timedelta(seconds=0))
+        data['conversion_delta'] = data.groupby(self._client_id_colname )[self._target_colname].diff().fillna(0)
 
+        change_session = data.loc[np.logical_or.reduce( (
+                                                    #data[self._target_colname] > 0, 
+                                                    data['conversion_delta']<0,
+                                                    data['time_delta'].dt.days > 7) ) ].groupby(self._client_id_colname ).cumcount() +2
+
+        data['session'] = None
+        data.loc[data.drop_duplicates(self._client_id_colname ,keep='first').index,'session'] = 1
+        data.loc[change_session.index,'session'] = change_session
+        data = data.fillna(method='ffill')
+
+        data = data.set_index('index')
+        data.index.name = None
         self._session_colname = 'session'
 
-        return dataframe.merge(session_df, left_index = True, right_index = True, how='left').fillna(1)
-        
-
-
-
-            
-            
-
-        
-        
+        return data
 
