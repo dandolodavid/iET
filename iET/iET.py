@@ -183,7 +183,7 @@ class iET():
 
         return out
 
-    def compute_session(dataframe, time_column, max_delta_days = 7, additional_sorting_columns = None ):
+    def compute_session(self, dataframe, time_column, max_delta_days = 7, additional_sorting_columns = None ):
         '''
         Compute the session based on the revenue. One session end when the user complete the target and a new session begin 
         from the successive action
