@@ -258,6 +258,6 @@ class iET():
         history_df.index = original_index
         
         out = dataframe.copy()
-        out = out.merge(history_df[['action','move_prob','target_prob','norm_weight','iET_attribution']], left_index=True,right_index=True, how='left')
+        out = out.merge(history_df[['action','move_prob','target_prob','transition_prob','norm_weight','iET_attribution']], left_index=True,right_index=True, how='left')
                 
         return out
