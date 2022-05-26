@@ -5,6 +5,7 @@ import plotly.express as px
 import plotly.figure_factory as ff
 import plotly.graph_objects as go
 from iET.iet_functions import *
+from iET.compute_attribution_function import *
 
 class iET():
 
@@ -15,6 +16,7 @@ class iET():
         self._session_colname = session_colname
         self._time_colname = time_colname
         self._top_k = use_top_k
+        self._top_k_name = None
         self._accept_consecutive_touchpoint = accept_consecutive_touchpoint
 
     def estimate_proba(self, dataframe ):
@@ -131,10 +133,9 @@ class iET():
 
         return fig
     
-
     def compute_session(self, dataframe, max_delta_days = 7, additional_sorting_columns = None ):
         '''
-        Compute the session based on the revenue. One session end when the user complete the target and a new session begin 
+        Compute the session based on the revenue and the days time delta. One session end when the user complete the target and a new session begin 
         from the successive action
 
         Parameters:
@@ -187,77 +188,21 @@ class iET():
 
         return data
 
-
-    def compute_attribution(self,dataframe):
+    def compute_attribution(self,dataframe, how='attribution_values'):
         '''
         Calculate the attribution for each line of the dataset.
-        For each user we compute the probability associated to his journey, with moving probs unitl we reach the target touchpoint
-        The probs are then normalized and multiplied for the target value
+        It accepts different methods : "step_proba" and "attribution_value" (default)
+        Step probability compute the probability of see each step and use them to calculate the weight for the attribution
+        Attribution value assigne to each touchpoint a weight related to the 
         '''
-        
-        data = dataframe.copy()
-        #if session is used we create a new key that is the joined of client id and session id
-        if self._session_colname:
-            data['client_session_id'] = data[self._client_id_colname].astype(str) +' : ' + data[self._session_colname].astype(str)
-            self._client_session_colname = 'client_session_id'
-        else:
-            self._client_session_colname = self._client_id_colname
-        
-        index_name = data.index.name
-        if index_name is  None:
-            index_name = 'index'
-        data = data.reset_index().sort_values(by = [self._client_session_colname, index_name]).set_index(index_name)
 
-        if self._top_k:
-            data = data.loc[ data[self._touchpoint_colname].apply(lambda x: x in self._top_k_name) ]
-            
-        # extract only custumers with transactions
-        client_session_with_transaction = data.loc[data[self._target_colname]>0][self._client_session_colname].unique()
-        
-        # find the next touchpoint for each client_session, if it is the last touchpoint, "next" will be None
-        data['next'] = data.groupby(self._client_session_colname)[self._touchpoint_colname].shift(-1)
-        
-        # extract the users touchpoint journey
-        movements_df = data[ [self._client_session_colname, self._time_colname, self._touchpoint_colname ] + ['next'] ]
-        movements_df = movements_df.loc[movements_df[self._client_session_colname].isin(client_session_with_transaction)]
-        
-        # extract the transition matrix and stack it in 2 columns
-        stacked_trm = self._transaction_df.stack().reset_index().rename( columns={'level_0':'start','level_1':'end',0:'transition_prob'} )
-        
-        # merge the probability of transition 
-        original_index = movements_df.index
-        movements_df = movements_df.merge(stacked_trm, how = 'left', left_on=[self._touchpoint_colname,'next'], right_on=['start','end'])
-
-        # merge the probability of moving and buy
-        movements_df['action'] = 'move'
-        movements_df.loc[movements_df.end.isna(),'action'] = 'buy'
-        
-        
-        
-        movements_df = movements_df.merge(self._final_df[['target_prob','move_prob']],how='left',left_on=[self._touchpoint_colname], right_index=True)
-        movements_df[['target_prob','move_prob']] = movements_df[['target_prob','move_prob']] .fillna(0)
-        movements_df.loc[movements_df.action=='buy','move_prob'] = 0
-        movements_df.loc[movements_df.action=='buy','transition_prob'] = 0
-        
-        # compute the weights : if buy -> target_proba, if move -> move_proba*transition_proba
-        movements_df['weight'] = movements_df['target_prob'] + movements_df['move_prob']*movements_df['transition_prob']
-        
-        # add for each client_session the total weight
-        history_df = movements_df.merge( movements_df.groupby(self._client_session_colname)['weight'].sum().reset_index().rename(columns={'weight':'sum_weight'}), left_on=self._client_session_colname, right_on=self._client_session_colname )
-        history_df['norm_weight'] = history_df['weight']/history_df['sum_weight']
-        
-        # add for each client_session the transaction value
-        if self._session_colname is None:
-            transaction_val = data.loc[data[self._target_colname]>0][[self._client_id_colname,self._target_colname]]
-        else:
-            transaction_val = data.loc[data[self._target_colname]>0][[self._client_id_colname,self._session_colname,self._target_colname]]
-            transaction_val[self._client_session_colname] = transaction_val[self._client_id_colname] + ' : ' + transaction_val[self._session_colname].astype(str)
-        
-        history_df = history_df.merge(transaction_val[[self._client_session_colname, self._target_colname]], left_on=self._client_session_colname, right_on=self._client_session_colname)
-        history_df['iET_attribution'] = history_df[self._target_colname]*history_df['norm_weight']
-        history_df.index = original_index
-        
-        out = dataframe.copy()
-        out = out.merge(history_df[['action','move_prob','target_prob','transition_prob','norm_weight','iET_attribution']], left_index=True,right_index=True, how='left')
+        if how == 'attribution_values':
+           out = compute_attribution_iet_values( dataframe = dataframe, session_colname = self._session_colname, client_id_colname = self._client_id_colname, 
+                                                touchpoint_colname = self._touchpoint_colname, time_colname = self._time_colname, target_colname = self._target_colname, 
+                                                iet_values_df = self._attribution_df, top_k = self._top_k, top_k_name = self._top_k_name )
+        if how == 'step_proba':
+            out = compute_attribution_step_probability( dataframe = dataframe, session_colname = self._session_colname, client_id_colname = self._client_id_colname, 
+                                                touchpoint_colname = self._touchpoint_colname, time_colname = self._time_colname, target_colname = self._target_colname,
+                                                transition_df = self._transaction_df, proba_df = self._final_df, top_k = self._top_k, top_k_name = self._top_k_name )
                 
         return out
