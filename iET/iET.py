@@ -18,6 +18,7 @@ class iET():
         self._top_k = use_top_k
         self._top_k_name = None
         self._accept_consecutive_touchpoint = accept_consecutive_touchpoint
+        tqdm.pandas()
 
     def estimate_proba(self, dataframe ):
         '''
@@ -170,8 +171,11 @@ class iET():
         
         data[self._time_colname] = pd.to_datetime(data[self._time_colname])
         
-        data['time_delta'] = data.groupby(grouping_columns)[self._time_colname].diff().fillna(pd.Timedelta(seconds=0))
-        data['previus_value'] = data.groupby(self._client_id_colname)[self._target_colname].shift().fillna(0)
+        print('[Session computing] Calculate time delta')
+        data['time_delta'] = data.groupby(grouping_columns)[self._time_colname].progress_apply(lambda x: x.diff())
+        
+        print('[Session computing] Calculate end of journey with transaction')
+        data['previus_value'] = data.groupby(self._client_id_colname)[self._target_colname].progress_apply(lambda x: x.shift())
         
         change_session = data.loc[np.logical_or(    data['previus_value']!=0, #if on the preivus line, the user has bought
                                                     data['time_delta'].dt.days > max_delta_days  #if the time from the las action
@@ -193,7 +197,7 @@ class iET():
         Calculate the attribution for each line of the dataset.
         It accepts different methods : "step_proba" and "attribution_value" (default)
         Step probability compute the probability of see each step and use them to calculate the weight for the attribution
-        Attribution value assigne to each touchpoint a weight related to the 
+        Attribution value assigne to each touchpoint a weight related to the iet attribution values calulate for that touchpoint.
         '''
 
         if how == 'attribution_values':
