@@ -37,7 +37,6 @@ class iET():
             index_name = 'index'
         data = data.reset_index().sort_values(by =  [self._client_session_colname, index_name]).set_index(index_name)
 
-
         if self._top_k:
             top_touchpoint = count_source_medium(data, self._touchpoint_colname, self._client_session_colname)
             self._top_k_name = top_touchpoint.sort_values(self._client_session_colname).index.tolist()[-self._top_k:]
@@ -103,7 +102,7 @@ class iET():
         fig = px.bar(plot_df, x = self._touchpoint_colname, y = 'value', color = 'hue', title= 'Buy Quit and Move probability by channels')
         return fig
     
-    def plot_transaction(self):
+    def plot_transaction(self, verbose = True):
         '''
         '''
         z = self._transaction_df.values
@@ -111,7 +110,9 @@ class iET():
         x = self._transaction_df.columns.tolist()
         y = self._transaction_df.index.tolist()
 
-        z_text = self._transaction_df.astype(str).values
+        z_text = round(100*self._transaction_df,2).astype(float).astype(str).values +'%'
+        if verbose:
+            z_text = z_text + '<br>(' + self._count_transaction_df.astype(int).astype(str).values + ')'
         
         fig = ff.create_annotated_heatmap(z, x=x, y=y, annotation_text=z_text, colorscale = 'bluered')
         fig['layout']['yaxis']['autorange'] = "reversed"
@@ -163,7 +164,7 @@ class iET():
         
         sorting_columns = [self._client_id_colname ] + additional_sorting_columns + [self._time_colname]
         grouping_columns = [self._client_id_colname ] + additional_sorting_columns
-        
+
         data = dataframe.sort_values(sorting_columns).copy().reset_index()
         
         for asc in additional_sorting_columns:

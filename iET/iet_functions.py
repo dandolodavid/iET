@@ -127,7 +127,6 @@ def estimate_transaction_matrix( data, client_id, client_session_id, touchpoint,
         if tp not in count_transiction.index.values:
             count_transiction.loc[tp] = np.zeros(count_transiction.shape[1])
 
-    
     prob_transiction = pd.DataFrame( np.round(count_transiction.values / (count_transiction.sum(axis=1).values[:,None] + 0.000000001) ,4) ,\
                                             index = count_transiction.index, columns=count_transiction.columns )
     
