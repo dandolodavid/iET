@@ -1,211 +1,134 @@
 import pandas as pd
 import numpy as np
-from tqdm import tqdm
 
-def count_source_medium( data, touchpoint, client_session_id ):
-    return data.groupby(touchpoint).count()[[client_session_id]]   
+OUTCOMES = ['target', 'quit', 'move']
 
-def target_reached_probability( data, client_session_id, touchpoint, target):
+
+def prepare_data(dataframe, client_id, session, touchpoint, time=None, top_k_name=None):
     '''
-    Compute the probability to be last touchpoint before the target
+    Shared preprocessing for estimation and attribution.
 
-    1) Find unique client_session + touchpoint combinations
-    2) Groups by touchpoint and count the session with target reached
-    3) Compute the target probability
-    
-    Parameters:
-    -----------
-    data: dataframe
-    client_session_id : unique ids for client session colname
-    touchpoint: colname with the touchpoint label
-    target: target colname
-    
+    1) Build the journey key (client id, or client id + session id)
+    2) Sort each journey by time (by original row order when no time column is given)
+    3) Map touchpoints outside top_k_name to "Other" (dropping them would create fake transitions)
+
     Returns:
     ---------
-    touchpoint_target_prob : dataframe with target probabilities
+    data : dataframe with a positional index (0..n-1 in the original row order)
+    key : name of the journey key column
     '''
-
-    #all occurences of all the combinations client/session + touchpoint 
-    target_combinations = data.drop_duplicates( subset =  [ client_session_id, touchpoint ], keep = 'last' ).loc[ data[target] != 0 ][[ client_session_id, touchpoint ]]
-
-    base = data.groupby(touchpoint).count()[[client_session_id]]
-    has_target = target_combinations.groupby(touchpoint).count()[[client_session_id]]
-
-    touchpoint_target_prob = base.merge(has_target, left_index=True, right_index=True, how='left').fillna(0)
-    touchpoint_target_prob.columns = ['base','has_target']
-    touchpoint_target_prob['prob'] = touchpoint_target_prob['has_target'] / touchpoint_target_prob['base']
-
-    return touchpoint_target_prob
-
-def quit_probability( data, client_session_id, touchpoint, target):
-    '''
-    Compute the probability to be last touchpoint before quit 
-
-    1) Find unique client_session + touchpoint combinations
-    2) Groups by touchpoint and count the session with target not reached
-    3) Compute the target probability
-    
-    Parameters:
-    -----------
-    data: dataframe
-    client_session_id : unique ids for client session colname
-    touchpoint: colname with the touchpoint label
-    target: target colname
-    
-    Returns:
-    ---------
-    touchpoint_quit_prob : dataframe with quit probabilities
-    '''
-
-    #all occurences of all the combinations client/session + touchpoint for all the data and only for zero data
-    quit_combinations = data.drop_duplicates( subset =  [ client_session_id ], keep = 'last' ).loc[ data[target] == 0 ][[ client_session_id, touchpoint ]]
-
-    base = data.groupby(touchpoint).count()[[client_session_id]]
-    has_quit = quit_combinations.groupby(touchpoint).count()[[client_session_id]]
-
-    touchpoint_quit_prob = base.merge(has_quit, left_index=True, right_index=True, how='left').fillna(0)
-    touchpoint_quit_prob.columns = ['base','has_quit']
-    touchpoint_quit_prob['prob'] = touchpoint_quit_prob['has_quit'] / touchpoint_quit_prob['base']
-
-    return touchpoint_quit_prob
-
-def estimate_transaction_matrix( data, client_id, client_session_id, touchpoint, target, accept_consecutive_touchpoint ):
-    '''
-    Compute transaction matrix probabilities
-
-    Parameters:
-    -----------
-    data: dataframe
-    client_session_id : unique ids for client session colname
-    touchpoint: colname with the touchpoint label
-    target: target colname
-    
-    Returns:
-    ---------
-    prob_transiction : dataframe with transaction probabilities
-    count_transiction : dataframe with transaction count
-    '''
-
-    #remove consecuitve duplicates of the same session in the same touchpoint
-    shifted = data.shift(1)
-    
-    if accept_consecutive_touchpoint:
-        client_touchpoint_path = data.copy()
+    data = dataframe.reset_index(drop=True)
+    if session:
+        key = 'client_session_id'
+        data[key] = data[client_id].astype(str) + ' : ' + data[session].astype(str)
     else:
-        client_touchpoint_path = data.loc[ np.logical_or( shifted[client_session_id] != data[client_session_id] , shifted[touchpoint] != data[touchpoint] ) ].reset_index(drop=True)
-    
-    #detect change in client_id 
-    #TO READ: here we use only the client id not the client session id. In this way when there are session there is the possiblity to cambe back with the same touchpoint
-    # when tere are no session the same user could not move to the same touchpoint 
-    client_touchpoint_path['is_client_changed'] = client_touchpoint_path[client_id].shift(1, fill_value = client_touchpoint_path[client_id].head(1))  !=  \
-                                                client_touchpoint_path[client_id]
+        key = client_id
+    data = data.sort_values([key] + ([time] if time else []), kind='stable')
+    if top_k_name is not None:
+        data[touchpoint] = data[touchpoint].where(data[touchpoint].isin(top_k_name), 'Other')
+    return data, key
 
-    change_index = client_touchpoint_path.loc[client_touchpoint_path['is_client_changed']].index
 
-    #add none where the client change, to easily remove that line from the count
-    partial = pd.DataFrame(None, index= change_index - 0.5)
-    partial[touchpoint] = None
-
-    touchpoint_state = client_touchpoint_path[[touchpoint]].copy()
-    touchpoint_state = touchpoint_state.append(partial).sort_index().reset_index(drop=True)
-
-    #create the shift and drop the line with None: they are last status of the user 
-    touchpoint_state['shift'] = touchpoint_state[touchpoint].shift(-1)
-    touchpoint_state['count'] = 1
-    touchpoint_state = touchpoint_state.dropna()
-
-    #groupby and count the combinations touchpoint-shift
-    count_transiction = touchpoint_state.groupby([touchpoint, 'shift']).count().unstack().fillna(0)
-    count_transiction.columns = count_transiction.columns.get_level_values(1)
-    count_transiction.index.name=None
-    count_transiction.columns.name=None
-
-    for tp in data[touchpoint].unique().tolist():
-        if tp not in count_transiction.columns.tolist():
-            count_transiction[tp] = 0
-
-        if tp not in count_transiction.index.values:
-            count_transiction.loc[tp] = np.zeros(count_transiction.shape[1])
-
-    prob_transiction = pd.DataFrame( np.round(count_transiction.values / (count_transiction.sum(axis=1).values[:,None] + 0.000000001) ,4) ,\
-                                            index = count_transiction.index, columns=count_transiction.columns )
-    
-
-    return prob_transiction, count_transiction
-
-def move_probabilities(target_probabilities, quit_probabilitis):
+def build_steps(data, key, touchpoint, target, accept_consecutive_touchpoint):
     '''
-    Find the probability to move to another touchpoint
-
-    Returns:
-    -------
-    dataframe with the move probabilities
+    One row per step of each journey, labelled with its outcome:
+    "target" if the target is reached on that step, "move" if the journey continues, "quit" otherwise.
+    Unless accept_consecutive_touchpoint, consecutive rows on the same touchpoint are merged in one step
+    (target summed), so probabilities and transition matrix are estimated on exactly the same events.
     '''
-    return pd.DataFrame( np.round(1 - target_probabilities.prob - quit_probabilitis.prob, 4 ) )
+    steps = data[[key, touchpoint, target]]
+    if not accept_consecutive_touchpoint:
+        new_step = (steps[key] != steps[key].shift()) | (steps[touchpoint] != steps[touchpoint].shift())
+        steps = steps.groupby(new_step.cumsum().to_numpy(), sort=False).agg({key: 'first', touchpoint: 'first', target: 'sum'})
+    steps = steps.reset_index(drop=True)
+    steps['first'] = steps[key] != steps[key].shift()
+    steps['next'] = steps.groupby(key, sort=False)[touchpoint].shift(-1)
+    steps['outcome'] = np.where(steps[target] != 0, 'target', np.where(steps['next'].isna(), 'quit', 'move'))
+    return steps
 
-def expected_target(data, target, touchpoint):
+
+def estimate_probabilities(steps, touchpoint, target, alpha=0.0, accept_consecutive_touchpoint=False, weight=None):
     '''
-    Compute the expected target value
-    
-    Returns:
-    --------
-    dataframe with the expcted target value conditioned to target > 0
-    '''
-    return data.loc[ data[target] > 0 ].groupby( touchpoint ).mean()[ [target] ]
-
-def merge_elements(target_df, quit_df, move_df, xT_df):
-    '''
-    Create unique df merging the result of target_reached_probability, quit_probability, move_probabilities, expected_target
-
-    Returns:
-    ----------
-    final_df : dataframe
-    '''
-
-    final_df = target_df[['prob']].merge(quit_df[['prob']], left_index=True, right_index=True)
-    final_df = final_df.merge(move_df, left_index=True, right_index=True)
-    final_df = final_df.merge(xT_df, left_index=True, right_index=True)
-    final_df.columns=['target_prob','quit_prob','move_prob','xT']
-
-    return final_df
-
-def calculate_attribution_values( final_df, prob_transiction, max_iter = 20, epsilon = 0.1 ):
-    '''
-    Calculate the attribution values and evaluate the convergences of the algorithm.
-    The cicle end when max iter is reached or the differences between consecutive state sum is less than epsilon
+    Estimate all the model quantities from the steps.
 
     Parameters:
-    ----------
-    final_df : dataframe form merge_elments function
-    prob_transiction : probabilities transaction matrix from estimate_transaction_matrix
-    max_iter : int, max number of cycle
-    epsilon: float, minimium differences sum to reach to stop the iteractions
+    -----------
+    alpha : Dirichlet (additive) smoothing added to outcome and transition counts
+    weight : optional weight of each step (used by the bootstrap); default 1
 
     Returns:
-    --------
-    values_df: dataframe with all the attribution values state
-    diff_df: dataframe with the story of differences
-
+    ---------
+    final_df : target_prob, quit_prob, move_prob (they sum to 1) and xT (mean target when reached) by touchpoint
+    prob_transition : row-stochastic transition matrix between touchpoints (rows with no moves are all 0)
+    count_transition : (weighted) transition counts
+    start : distribution of the first touchpoint of the journeys
     '''
-    tp_list = final_df.index.tolist()
-    values_df = pd.DataFrame( np.zeros(len(tp_list)), index = tp_list, columns = ['v0'])
-    diff_df = pd.DataFrame( np.zeros(len(tp_list)), index = tp_list, columns = ['dv0'])
-    
-    for itr in range(0,max_iter):
-        
-        values_df['v' + str( itr+1 )] = None
-        
-        for tp in tp_list:
-            values_df.loc[tp, 'v' + str( itr+1 )] = final_df.loc[ tp,'target_prob' ]*final_df.loc[ tp,'xT' ] + \
-            final_df.loc[ tp,'move_prob' ] * np.sum( values_df[ 'v'+ str(itr) ] * prob_transiction.loc[tp][tp_list] )
-        
-        diff_df['dv'+str(itr)] = values_df[ 'v' + str(itr+1) ] - values_df[ 'v' + str(itr) ]   
+    w = pd.Series(1.0, index=steps.index) if weight is None else weight
+    tp = steps[touchpoint]
 
-        if diff_df['dv'+str(itr)].sum() < epsilon:
-            print('Convergence reached in ' +str(itr)+ ' passes')
-            break
+    counts = pd.crosstab(tp, steps['outcome'], values=w, aggfunc='sum').reindex(columns=OUTCOMES).fillna(0) + alpha
+    final_df = counts.div(counts.sum(axis=1).replace(0, 1), axis=0) \
+                     .set_axis(['target_prob', 'quit_prob', 'move_prob'], axis=1) \
+                     .rename_axis(index=None, columns=None)
+    tps = final_df.index
 
-    return values_df, diff_df
+    # touchpoints that never convert get xT = 0 instead of being dropped: they still pass value through moves
+    conv = steps[target] != 0
+    xT = (steps[target] * w)[conv].groupby(tp[conv]).sum() / w[conv].groupby(tp[conv]).sum()
+    final_df['xT'] = xT.reindex(tps).fillna(0)
+
+    move = steps['outcome'] == 'move'
+    count_transition = w[move].groupby([tp[move], steps.loc[move, 'next']]).sum().unstack() \
+                              .reindex(index=tps, columns=tps).fillna(0).rename_axis(index=None, columns=None)
+    smoothed = count_transition + alpha
+    if not accept_consecutive_touchpoint:
+        smoothed = smoothed.mask(np.eye(len(tps), dtype=bool), 0)
+    prob_transition = smoothed.div(smoothed.sum(axis=1).replace(0, 1), axis=0)
+
+    first = steps['first']
+    start = w[first].groupby(tp[first]).sum().reindex(tps).fillna(0)
+    start = start / start.sum()
+
+    return final_df, prob_transition, count_transition, start
 
 
-    
+def _reward_and_q(final_df, prob_transition):
+    tp = final_df.index
+    q = final_df['move_prob'].to_numpy()[:, None] * prob_transition.loc[tp, tp].to_numpy()
+    r = (final_df['target_prob'] * final_df['xT']).to_numpy()
+    return r, q
+
+
+def calculate_attribution_values(final_df, prob_transition, max_steps=None):
+    '''
+    Value of each touchpoint: V = target_prob * xT + move_prob * P V (Bellman equation of the absorbing chain).
+    With max_steps=None the exact solution (I - diag(move_prob) P)^-1 (target_prob * xT) is returned; the system
+    is non-singular because every journey ends (with target or quit) in a finite number of steps.
+    With max_steps=k only the target reached within k steps is counted.
+    '''
+    r, q = _reward_and_q(final_df, prob_transition)
+    if max_steps is None:
+        v = np.linalg.solve(np.eye(len(r)) - q, r)
+    else:
+        v = np.zeros(len(r))
+        for _ in range(max_steps):
+            v = r + q @ v
+    return pd.Series(v, index=final_df.index, name='attribution_values')
+
+
+def removal_effects(final_df, prob_transition, start):
+    '''
+    Removal effect of each touchpoint (Anderl et al. 2016): relative drop of the expected target of a journey
+    when the touchpoint is removed and every journey reaching it quits.
+    '''
+    r, q = _reward_and_q(final_df, prob_transition)
+    s0 = start.reindex(final_df.index).to_numpy()
+    n = len(r)
+    base = s0 @ np.linalg.solve(np.eye(n) - q, r)
+    effects = np.zeros(n)
+    if base > 0:
+        for i in range(n):
+            keep = np.arange(n) != i
+            v = np.linalg.solve(np.eye(n - 1) - q[np.ix_(keep, keep)], r[keep])
+            effects[i] = 1 - s0[keep] @ v / base
+    return pd.Series(effects, index=final_df.index, name='removal_effect')

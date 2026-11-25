@@ -1,0 +1,360 @@
+<title>iET passo passo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: una colonna di lettura (~68ch) con un esempio numerico che attraversa tutti i passi; tabelle e grafo in pannelli scorrevoli */
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --fg: #18202b;
+  --muted: #5b6575;
+  --line: #d9dee6;
+  --accent: #2348c9;
+  --accent-soft: #e6ecfb;
+  --win: #1d7f55;
+  --win-soft: #e2f3ea;
+  --lose: #a8443a;
+  --lose-soft: #f6e5e2;
+  --display: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --body: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11151c; --surface: #19202a; --fg: #e6eaf0; --muted: #9aa5b5; --line: #2c3542;
+    --accent: #8aa6ff; --accent-soft: #1f2a48; --win: #5cc795; --win-soft: #16302a; --lose: #ef8f82; --lose-soft: #3a2220;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11151c; --surface: #19202a; --fg: #e6eaf0; --muted: #9aa5b5; --line: #2c3542;
+  --accent: #8aa6ff; --accent-soft: #1f2a48; --win: #5cc795; --win-soft: #16302a; --lose: #ef8f82; --lose-soft: #3a2220;
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg); color: var(--fg);
+  font: 16px/1.65 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+main { max-width: 760px; margin: 0 auto; padding-block: 48px 80px; display: grid; gap: 56px; }
+header { display: grid; gap: 14px; }
+.eyebrow { font: 500 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+h1 { font: 700 clamp(34px, 6vw, 52px)/1.05 var(--display); margin: 0; text-wrap: balance; letter-spacing: -.02em; }
+h2 { font: 600 24px/1.2 var(--display); margin: 0; text-wrap: balance; display: flex; gap: 12px; align-items: baseline; }
+h2 .n { font: 500 14px/1 var(--mono); color: var(--accent); min-width: 2ch; }
+h3 { font: 600 17px/1.3 var(--display); margin: 8px 0 0; }
+p { margin: 0; max-width: 68ch; }
+ul { margin: 0; padding-left: 22px; display: grid; gap: 4px; max-width: 68ch; }
+.lede { font-size: 18px; color: var(--muted); }
+section { display: grid; gap: 16px; min-width: 0; }
+code, .m { font-family: var(--mono); font-size: .92em; }
+.formula {
+  font: 500 16px/1.6 var(--mono); background: var(--surface); border: 1px solid var(--line);
+  border-left: 3px solid var(--accent); padding: 14px 18px; overflow-x: auto; white-space: nowrap;
+}
+.note { font-size: 14.5px; color: var(--muted); }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px; overflow-x: auto; }
+
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-size: 14.5px; }
+th { font: 500 12px/1.2 var(--mono); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+td { padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; font-family: var(--mono); }
+
+.path { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chip { font: 500 13px/1 var(--mono); padding: 5px 8px; border-radius: 4px; background: var(--accent-soft); color: var(--fg); white-space: nowrap; }
+.chip.dup { text-decoration: line-through; opacity: .55; }
+.arrow { color: var(--muted); font-size: 13px; }
+.out { font: 600 12px/1 var(--mono); padding: 5px 8px; border-radius: 4px; white-space: nowrap; }
+.out.target { background: var(--win-soft); color: var(--win); }
+.out.quit { background: var(--lose-soft); color: var(--lose); }
+.out.move { background: var(--accent-soft); color: var(--accent); }
+
+svg text { font-family: var(--mono); font-size: 12px; fill: var(--fg); }
+svg .node { fill: var(--surface); stroke: var(--accent); stroke-width: 1.5; }
+svg .node.win { stroke: var(--win); fill: var(--win-soft); }
+svg .node.start { stroke: var(--muted); stroke-dasharray: 4 3; }
+svg .edge { fill: none; stroke: var(--muted); stroke-width: 1.3; }
+svg .edge.win { stroke: var(--win); }
+svg .edge.quit { stroke: var(--lose); stroke-dasharray: 3 3; }
+svg .lbl { fill: var(--muted); font-size: 11px; }
+svg .lbl.quit { fill: var(--lose); }
+svg .name { font-family: var(--display); font-weight: 600; font-size: 13px; }
+svg .arrowhead { fill: var(--muted); }
+svg .arrowhead.win { fill: var(--win); }
+svg .arrowhead.quit { fill: var(--lose); }
+
+.iter { display: grid; gap: 14px; }
+.iter label { font: 500 14px/1.3 var(--body); display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.iter input[type=range] { flex: 1 1 200px; accent-color: var(--accent); }
+.iter input[type=range]:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.bars { display: grid; gap: 10px; }
+.bar-row { display: grid; grid-template-columns: 70px 1fr 120px; gap: 12px; align-items: center; font-size: 14px; }
+.track { position: relative; height: 18px; background: var(--bg); border-radius: 3px; }
+.fill { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: 3px; transition: width .25s ease; }
+.target-mark { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--fg); }
+.bar-row .val { font-family: var(--mono); text-align: right; font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) { .fill { transition: none; } }
+
+.check { display: flex; flex-wrap: wrap; gap: 10px; align-items: baseline; padding: 12px 16px; background: var(--win-soft); border-radius: 6px; font-size: 15px; }
+.check b { color: var(--win); font-family: var(--mono); }
+ol.sources { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14.5px; }
+a { color: var(--accent); }
+@media (max-width: 520px) { .bar-row { grid-template-columns: 56px 1fr 92px; font-size: 13px; } }
+</style>
+
+<main>
+  <header>
+    <div class="eyebrow">iET · iterative Expected Target</div>
+    <h1>Come iET assegna il valore ai touchpoint</h1>
+    <p class="lede">Un esempio con 7 percorsi d'acquisto, seguito dall'inizio alla fine. Ogni numero in questa pagina è calcolato con la libreria <code>iET</code> sugli stessi dati.</p>
+  </header>
+
+  <section>
+    <h2>L'idea</h2>
+    <p>Ogni touchpoint (canale) è uno <em>stato</em>. Da uno stato il cliente può fare tre cose: <span class="out target">converte</span>, <span class="out quit">abbandona</span> oppure <span class="out move">passa a un altro touchpoint</span>. Il <strong>valore iET</strong> di un touchpoint è il target che ci si aspetta di incassare da un cliente che si trova lì, contando anche tutto quello che potrà succedere dopo.</p>
+    <p>In termini tecnici è il valore di stato di un <strong>Markov Reward Process</strong> su una catena di Markov assorbente: <em>Conversione</em> e <em>Abbandono</em> sono gli stati da cui non si esce.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">1</span>I dati: percorsi dei clienti</h2>
+    <p>Ogni riga del dataset è un'interazione: cliente, istante, touchpoint e target (qui il revenue, ma può essere anche 0/1). Le righe di un cliente, ordinate per tempo, formano il suo percorso. Se usi le sessioni, il percorso è la coppia (cliente, sessione).</p>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Percorso</th><th>Touchpoint in ordine di tempo</th><th class="num">Revenue</th></tr></thead>
+        <tbody>
+          <tr><td class="m">J1</td><td><div class="path"><span class="chip">Social</span><span class="arrow">→</span><span class="chip">Search</span><span class="out target">50</span></div></td><td class="num">50</td></tr>
+          <tr><td class="m">J2</td><td><div class="path"><span class="chip">Social</span><span class="arrow">→</span><span class="chip">Email</span><span class="arrow">→</span><span class="chip">Search</span><span class="out target">80</span></div></td><td class="num">80</td></tr>
+          <tr><td class="m">J3</td><td><div class="path"><span class="chip">Social</span><span class="out quit">esce</span></div></td><td class="num">0</td></tr>
+          <tr><td class="m">J4</td><td><div class="path"><span class="chip">Email</span><span class="arrow">→</span><span class="chip">Search</span><span class="out quit">esce</span></div></td><td class="num">0</td></tr>
+          <tr><td class="m">J5</td><td><div class="path"><span class="chip">Search</span><span class="out target">60</span></div></td><td class="num">60</td></tr>
+          <tr><td class="m">J6</td><td><div class="path"><span class="chip">Email</span><span class="arrow">→</span><span class="chip dup">Email</span><span class="arrow">→</span><span class="chip">Social</span><span class="out quit">esce</span></div></td><td class="num">0</td></tr>
+          <tr><td class="m">J7</td><td><div class="path"><span class="chip">Social</span><span class="arrow">→</span><span class="chip">Email</span><span class="out target">40</span></div></td><td class="num">40</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">Totale: 230 di revenue su 7 percorsi. L'ordine viene da <code>time_colname</code>, non dall'ordine delle righe nel file.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">2</span>Dai percorsi ai passi</h2>
+    <p>Ogni percorso viene scomposto in <strong>passi</strong>, e ogni passo ha <em>un solo</em> esito:</p>
+    <ul>
+      <li><span class="out target">target</span> se su quel passo il target è diverso da 0;</li>
+      <li><span class="out move">move</span> se il percorso continua, con il touchpoint successivo come destinazione;</li>
+      <li><span class="out quit">quit</span> se è l'ultimo passo e il target non è stato raggiunto.</li>
+    </ul>
+    <p>Con <code>accept_consecutive_touchpoint=False</code> (il default), le ripetizioni consecutive dello stesso canale diventano un unico passo: in J6 <span class="m">Email → Email</span> conta una volta sola. Con <code>True</code> restano separate e diventano transizioni di un canale verso sé stesso.</p>
+    <p>Tutte le stime successive (probabilità, matrice di transizione, distribuzione iniziale) usano <em>questi stessi passi</em>, quindi sono coerenti fra loro per costruzione.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">3</span>Stimare le probabilità</h2>
+    <p>Per ogni touchpoint si contano gli esiti dei suoi passi. Esempio per Email: 4 passi (J2, J4, J6, J7), uno converte (J7, 40) e tre si spostano.</p>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Touchpoint</th><th class="num">Passi</th><th class="num">target_prob</th><th class="num">quit_prob</th><th class="num">move_prob</th><th class="num">xT</th></tr></thead>
+        <tbody>
+          <tr><td>Social</td><td class="num">5</td><td class="num">0</td><td class="num">0,40</td><td class="num">0,60</td><td class="num">0</td></tr>
+          <tr><td>Email</td><td class="num">4</td><td class="num">0,25</td><td class="num">0</td><td class="num">0,75</td><td class="num">40,00</td></tr>
+          <tr><td>Search</td><td class="num">4</td><td class="num">0,75</td><td class="num">0,25</td><td class="num">0</td><td class="num">63,33</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><code>xT</code> è il valore medio del target <em>quando</em> viene raggiunto su quel touchpoint. Per Search è (50 + 80 + 60) / 3 = 63,33. Social non converte mai direttamente, quindi ha <code>xT = 0</code>, ma <strong>resta nel modello</strong>: il suo valore arriva dai passaggi verso altri canali.</p>
+    <h3>Matrice di transizione</h3>
+    <p>Tra i passi <span class="out move">move</span>, dove si va? Ogni riga somma a 1 (oppure a 0 se il canale non porta mai altrove).</p>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Da \ A</th><th class="num">Social</th><th class="num">Email</th><th class="num">Search</th></tr></thead>
+        <tbody>
+          <tr><td>Social</td><td class="num">0</td><td class="num">2/3</td><td class="num">1/3</td></tr>
+          <tr><td>Email</td><td class="num">1/3</td><td class="num">0</td><td class="num">2/3</td></tr>
+          <tr><td>Search</td><td class="num">0</td><td class="num">0</td><td class="num">0</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">Con pochi dati alcune celle sono stimate male. Il parametro <code>alpha</code> aggiunge uno smoothing di Dirichlet (Laplace): somma <code>alpha</code> a ogni conteggio prima di normalizzare.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">4</span>La catena di Markov</h2>
+    <p>Mettendo insieme i due pezzi, la probabilità di andare da <span class="m">s</span> a <span class="m">s'</span> è <span class="m">move_prob(s) · P(s, s')</span>. Lo stato Start rappresenta il primo touchpoint di ogni percorso.</p>
+    <div class="panel">
+      <svg viewBox="0 0 680 310" width="100%" role="img" aria-label="Grafo della catena: Start porta a Social (0,57), Email (0,29) e Search (0,14). Social va a Email 0,40, a Search 0,20, esce 0,40. Email va a Search 0,50, a Social 0,25, converte 0,25. Search converte 0,75 ed esce 0,25." style="min-width:560px">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead" d="M0,0 L10,5 L0,10 z"/></marker>
+          <marker id="ahw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead win" d="M0,0 L10,5 L0,10 z"/></marker>
+          <marker id="ahq" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead quit" d="M0,0 L10,5 L0,10 z"/></marker>
+        </defs>
+        <path class="edge" d="M86,150 L188,150" marker-end="url(#ah)"/>
+        <text class="lbl" x="137" y="142" text-anchor="middle">0,57</text>
+        <path class="edge" d="M76,130 Q190,30 368,56" marker-end="url(#ah)"/>
+        <text class="lbl" x="200" y="60" text-anchor="middle">0,29</text>
+        <path class="edge" d="M76,170 Q190,300 368,228" marker-end="url(#ah)"/>
+        <text class="lbl" x="200" y="262" text-anchor="middle">0,14</text>
+        <path class="edge" d="M240,127 Q290,70 368,59" marker-end="url(#ah)"/>
+        <text class="lbl" x="292" y="78" text-anchor="middle">0,40</text>
+        <path class="edge" d="M378,82 Q330,140 252,156" marker-end="url(#ah)"/>
+        <text class="lbl" x="334" y="140" text-anchor="middle">0,25</text>
+        <path class="edge" d="M248,163 L370,212" marker-end="url(#ah)"/>
+        <text class="lbl" x="296" y="204" text-anchor="middle">0,20</text>
+        <path class="edge" d="M400,92 L400,186" marker-end="url(#ah)"/>
+        <text class="lbl" x="414" y="143">0,50</text>
+        <path class="edge win" d="M429,72 L568,127" marker-end="url(#ahw)"/>
+        <text class="lbl" x="508" y="88" text-anchor="middle">0,25</text>
+        <path class="edge win" d="M429,208 L568,153" marker-end="url(#ahw)"/>
+        <text class="lbl" x="508" y="198" text-anchor="middle">0,75</text>
+        <path class="edge quit" d="M220,181 L220,208" marker-end="url(#ahq)"/>
+        <text class="lbl quit" x="220" y="224" text-anchor="middle">esce 0,40</text>
+        <path class="edge quit" d="M400,251 L400,276" marker-end="url(#ahq)"/>
+        <text class="lbl quit" x="400" y="292" text-anchor="middle">esce 0,25</text>
+        <circle class="node start" cx="60" cy="150" r="26"/><text class="name" x="60" y="154" text-anchor="middle">Start</text>
+        <circle class="node" cx="220" cy="150" r="30"/><text class="name" x="220" y="154" text-anchor="middle">Social</text>
+        <circle class="node" cx="400" cy="60" r="30"/><text class="name" x="400" y="64" text-anchor="middle">Email</text>
+        <circle class="node" cx="400" cy="220" r="30"/><text class="name" x="400" y="224" text-anchor="middle">Search</text>
+        <circle class="node win" cx="604" cy="140" r="36"/><text class="name" x="604" y="136" text-anchor="middle">Conver-</text><text class="name" x="604" y="152" text-anchor="middle">sione</text>
+      </svg>
+    </div>
+    <p class="note">Le frecce uscenti da ogni touchpoint sommano a 1. Per Email: 0,50 + 0,25 + 0,25.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">5</span>L'equazione di Bellman</h2>
+    <p>Il valore di un touchpoint è il guadagno immediato, se converte lì, più il valore medio di dove andrà dopo:</p>
+    <div class="formula">V(s) = target_prob(s) · xT(s) + move_prob(s) · Σ<sub>s'</sub> P(s, s') · V(s')</div>
+    <p>Chiamiamo <span class="m">r(s) = target_prob(s) · xT(s)</span> il guadagno immediato. Nell'esempio: Social 0, Email 0,25 · 40 = 10, Search 0,75 · 63,33 = 47,5. Le equazioni diventano:</p>
+    <div class="formula">V(Search) = 47,5<br>V(Email)&nbsp; = 10 + 0,50 · V(Search) + 0,25 · V(Social)<br>V(Social) = 0,40 · V(Email) + 0,20 · V(Search)</div>
+    <p>È un sistema lineare. In forma matriciale <span class="m">V = r + Q·V</span>, con <span class="m">Q = diag(move_prob) · P</span>, e quindi:</p>
+    <div class="formula">V = (I − Q)<sup>−1</sup> · r</div>
+    <p><span class="m">(I − Q)<sup>−1</sup></span> è la <em>matrice fondamentale</em> della catena assorbente: la cella (s, s') è il numero atteso di visite a s' partendo da s. Il sistema ha sempre soluzione, perché ogni percorso prima o poi finisce in Conversione o Abbandono.</p>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Touchpoint</th><th class="num">r(s)</th><th class="num">Valore iET V(s)</th></tr></thead>
+        <tbody>
+          <tr><td>Search</td><td class="num">47,50</td><td class="num">47,50</td></tr>
+          <tr><td>Email</td><td class="num">10,00</td><td class="num">40,14</td></tr>
+          <tr><td>Social</td><td class="num">0</td><td class="num">25,56</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Social non converte mai direttamente, ma vale 25,56 perché porta clienti verso Email e Search.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">6</span>Iterazione e orizzonte</h2>
+    <p>Lo stesso valore si ottiene ripetendo <span class="m">V<sub>k+1</sub> = r + Q·V<sub>k</sub></span> partendo da zero. È il metodo che usava la prima versione di iET. Dopo k passi, <span class="m">V<sub>k</sub></span> conta solo il target raggiunto <em>entro k touchpoint</em>: fermarsi presto equivale a scegliere un orizzonte. Con <code>max_steps=k</code> lo scegli tu in modo esplicito; senza, la libreria calcola la soluzione esatta.</p>
+    <div class="panel iter">
+      <label for="k">Passi considerati: <strong id="kval" class="m">1</strong><input id="k" type="range" min="1" max="10" value="1"></label>
+      <div class="bars" id="bars"></div>
+      <p class="note">La barra è <span class="m">V<sub>k</sub></span>, la linea verticale il valore esatto. Search non si sposta mai, quindi è già esatto al passo 1; Social è il più lento, perché il suo valore arriva solo dopo uno o due spostamenti.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">7</span>Lo stato Start</h2>
+    <p>Il primo touchpoint è Social in 4 percorsi su 7, Email in 2 e Search in 1. Il valore atteso di un percorso nuovo è la media dei valori, pesata con questa distribuzione:</p>
+    <div class="formula">V(Start) = (4 · 25,56 + 2 · 40,14 + 1 · 47,50) / 7 = 32,86</div>
+    <div class="check"><span>Verifica</span><span>230 di revenue / 7 percorsi = <b>32,86</b>. Il modello ricostruisce esattamente il revenue medio osservato.</span></div>
+  </section>
+
+  <section>
+    <h2><span class="n">8</span>Dal valore al contributo: removal effect</h2>
+    <p>V(s) dice quanto vale <em>trovarsi</em> su un canale, ma non quanto il canale <em>contribuisce</em>. Un canale che sta sempre a ridosso dell'acquisto ha un valore alto anche se non causa nulla. Per misurare il contributo si toglie il canale dalla catena (chi ci arriverebbe abbandona) e si guarda quanto scende V(Start).</p>
+    <p>Esempio: senza Search, V(Email) = 11,11, V(Social) = 4,44 e V(Start) = 5,71. Il valore atteso scende da 32,86 a 5,71, cioè dell'82,6%.</p>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Touchpoint</th><th class="num">Valore iET</th><th class="num">Removal effect</th><th class="num">Revenue attribuito</th></tr></thead>
+        <tbody>
+          <tr><td>Search</td><td class="num">47,50</td><td class="num">82,6%</td><td class="num">97,22</td></tr>
+          <tr><td>Email</td><td class="num">40,14</td><td class="num">62,8%</td><td class="num">73,94</td></tr>
+          <tr><td>Social</td><td class="num">25,56</td><td class="num">50,0%</td><td class="num">58,84</td></tr>
+          <tr><td><strong>Totale</strong></td><td></td><td></td><td class="num"><strong>230,00</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Il revenue attribuito è il revenue totale diviso in proporzione ai removal effect, quindi somma sempre al totale. Si ottiene con <code>estimate_removal_effect()</code>.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">9</span>Attribuzione riga per riga</h2>
+    <p><code>compute_attribution</code> divide il revenue di ogni percorso tra le sue righe, in proporzione al peso del touchpoint: il valore iET (<code>how='attribution_values'</code>) oppure il removal effect (<code>how='removal_effect'</code>). I percorsi senza conversione ricevono 0.</p>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Percorso</th><th>Riga</th><th class="num">Peso (removal)</th><th class="num">Quota</th><th class="num">Attribuzione</th></tr></thead>
+        <tbody>
+          <tr><td class="m">J1 · 50</td><td>Social</td><td class="num">0,500</td><td class="num">0,377</td><td class="num">18,85</td></tr>
+          <tr><td></td><td>Search</td><td class="num">0,826</td><td class="num">0,623</td><td class="num">31,15</td></tr>
+          <tr><td class="m">J2 · 80</td><td>Social</td><td class="num">0,500</td><td class="num">0,256</td><td class="num">20,47</td></tr>
+          <tr><td></td><td>Email</td><td class="num">0,628</td><td class="num">0,321</td><td class="num">25,72</td></tr>
+          <tr><td></td><td>Search</td><td class="num">0,826</td><td class="num">0,423</td><td class="num">33,82</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">Quota = peso / somma dei pesi nel percorso. La somma delle attribuzioni di un percorso è sempre il suo revenue, anche con più acquisti nello stesso percorso.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">10</span>Quanto fidarsi dei numeri</h2>
+    <p><code>bootstrap(n_boot=100)</code> ricampiona i percorsi con reinserimento, ristima il modello e restituisce i quantili dei valori iET. Se gli intervalli di due canali si sovrappongono, la loro differenza non è affidabile. Sul dataset del notebook (50.000 righe), Facebook e Instagram si sovrappongono, mentre Online Video si distingue.</p>
+    <p>Tre limiti restano anche con il modello corretto:</p>
+    <ul>
+      <li><strong>Memoria di un passo.</strong> Dove si va dopo dipende solo dal touchpoint attuale, non dalla storia.</li>
+      <li><strong>Il tempo conta solo come finestra.</strong> Le sessioni separano i percorsi, ma dentro una sessione un contatto di 6 giorni fa pesa come uno di 1 minuto fa.</li>
+      <li><strong>Correlazione, non causalità.</strong> Chi vede il retargeting voleva già comprare. Per il budget, conviene validare con esperimenti (holdout, geo-test).</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Fonti</h2>
+    <ol class="sources">
+      <li>R. S. Sutton, A. G. Barto, <em>Reinforcement Learning: An Introduction</em>, 2ª ed., MIT Press, 2018. Cap. 3 (equazioni di Bellman) e §4.1 (iterative policy evaluation). <a href="http://incompleteideas.net/book/the-book-2nd.html" target="_blank" rel="noopener">incompleteideas.net</a></li>
+      <li>J. G. Kemeny, J. L. Snell, <em>Finite Markov Chains</em>, Van Nostrand, 1960. Catene assorbenti e matrice fondamentale.</li>
+      <li>C. M. Grinstead, J. L. Snell, <em>Introduction to Probability</em>, AMS. Cap. 11, §11.2 "Absorbing Markov Chains".</li>
+      <li>K. Singh, "Introducing Expected Threat (xT)", 2018/19. <a href="https://karun.in/blog/expected-threat.html" target="_blank" rel="noopener">karun.in</a></li>
+      <li>E. Anderl, I. Becker, F. von Wangenheim, J. H. Schumann, "Mapping the customer journey: Lessons learned from graph-based online attribution modeling", <em>International Journal of Research in Marketing</em> 33(3), 2016.</li>
+      <li>B. R. Gordon, F. Zettelmeyer, N. Bhargava, D. Chapsky, "A Comparison of Approaches to Advertising Measurement: Evidence from Big Field Experiments at Facebook", <em>Marketing Science</em> 38(2), 2019.</li>
+    </ol>
+  </section>
+</main>
+
+<script>
+(function () {
+  // Esempio della pagina: ordine Social, Email, Search
+  var names = ['Social', 'Email', 'Search'];
+  var r = [0, 10, 47.5];
+  var Q = [[0, 0.4, 0.2], [0.25, 0, 0.5], [0, 0, 0]];
+  var exact = [25.5556, 40.1389, 47.5];
+  var scale = 50;
+  var fmt = function (x) { return x.toFixed(2).replace('.', ','); };
+  var bars = document.getElementById('bars');
+  var rows = names.map(function (n, i) {
+    var row = document.createElement('div');
+    row.className = 'bar-row';
+    row.innerHTML = '<span>' + n + '</span><div class="track"><div class="fill"></div><div class="target-mark" style="left:' + (exact[i] / scale * 100) + '%"></div></div><span class="val"></span>';
+    bars.appendChild(row);
+    return row;
+  });
+  function valueAt(k) {
+    var v = [0, 0, 0];
+    for (var s = 0; s < k; s++) {
+      v = r.map(function (ri, i) { return ri + Q[i][0] * v[0] + Q[i][1] * v[1] + Q[i][2] * v[2]; });
+    }
+    return v;
+  }
+  function render(k) {
+    document.getElementById('kval').textContent = k;
+    var v = valueAt(k);
+    rows.forEach(function (row, i) {
+      row.querySelector('.fill').style.width = (v[i] / scale * 100) + '%';
+      row.querySelector('.val').textContent = fmt(v[i]) + ' / ' + fmt(exact[i]);
+    });
+  }
+  var input = document.getElementById('k');
+  input.addEventListener('input', function () { render(+input.value); });
+  render(+input.value);
+})();
+</script>
