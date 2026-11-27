@@ -188,17 +188,18 @@ class iET():
 
         return data
 
-    def compute_attribution(self, dataframe, how = 'attribution_values'):
+    def compute_attribution(self, dataframe, how = 'removal_effect'):
         '''
         Calculate the attribution for each line of the dataset: the target of each journey is split among its lines
         proportionally to the weight of their touchpoint.
-        how = "attribution_values" (default) uses the iET values (estimate_attribution must be called first),
-        how = "removal_effect" uses the removal effects (estimate_removal_effect must be called first).
+        how = "removal_effect" (default) uses the removal effects (how much each touchpoint matters overall),
+        how = "attribution_values" uses the iET values (estimate_attribution must be called first).
         '''
         if how == 'attribution_values':
             weights = self._attribution_df['attribution_values']
         elif how == 'removal_effect':
-            weights = self._removal_df['removal_effect']
+            # recomputed every time (n+1 small linear solves) so it always matches the last estimate_proba
+            weights = self.estimate_removal_effect()['removal_effect']
         else:
             raise ValueError('how must be "attribution_values" or "removal_effect"')
 
