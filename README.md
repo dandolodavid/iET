@@ -33,7 +33,8 @@ model.estimate_proba(data)
 values = model.estimate_attribution()         # iET value of each touchpoint (max_steps=k for a k-steps horizon)
 removal = model.estimate_removal_effect()     # removal effect and total target attributed proportionally to it
 ci = model.bootstrap(n_boot=100)              # bootstrap quantiles of the iET values
-rows = model.compute_attribution(data, how='removal_effect')  # or how='attribution_values'
+rows = model.compute_attribution(data)        # splits each journey target by removal effect (default)
+                                              # or how='attribution_values' to split by iET values
 ```
 
 Options: `use_top_k` groups the less frequent touchpoints as `"Other"`, `alpha` adds Dirichlet smoothing to sparse counts,

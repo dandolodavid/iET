@@ -68,6 +68,15 @@ def test_row_attribution_sums_to_target(how):
     assert out.loc[out.user == 2, 'iET_attribution'].sum() == 0
 
 
+def test_default_attribution_is_removal_effect():
+    # notebook flow: no explicit estimate_removal_effect() call before compute_attribution
+    df = toy()
+    m, _ = fit(df)
+    pd.testing.assert_frame_equal(m.compute_attribution(df), m.compute_attribution(df, how='removal_effect'))
+    with pytest.raises(ValueError):
+        m.compute_attribution(df, how='nope')
+
+
 def test_removal_effect_attributes_total_target():
     m, _ = fit(toy())
     assert m.estimate_removal_effect()['attributed_target'].sum() == pytest.approx(toy()['rev'].sum())

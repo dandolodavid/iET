@@ -280,8 +280,48 @@ a { color: var(--accent); }
   </section>
 
   <section>
+    <h2>Valori iET o removal effect?</h2>
+    <p>La libreria restituisce due misure, perché rispondono a due domande diverse.</p>
+    <div class="panel">
+      <table>
+        <thead><tr><th></th><th>Valore iET V(s)</th><th>Removal effect</th></tr></thead>
+        <tbody>
+          <tr><td>Domanda</td><td>Quanto vale un cliente che <em>si trova</em> su questo canale?</td><td>Quanto perde il sistema <em>senza</em> questo canale?</td></tr>
+          <tr><td>Calcolo</td><td>Revenue atteso da quel punto in poi</td><td>Calo di V(Start) se chi arriva sul canale abbandona</td></tr>
+          <tr><td>Unità</td><td>€ per cliente in quel punto</td><td>% del revenue, poi ripartito in €</td></tr>
+          <tr><td>Dipende dal traffico?</td><td>No: misura la qualità di un contatto</td><td>Sì: qualità × quanti percorsi ci passano</td></tr>
+          <tr><td>Somma al totale?</td><td>No</td><td>Sì, dopo la rinormalizzazione</td></tr>
+          <tr><td>Metodo</td><td><code>estimate_attribution()</code></td><td><code>estimate_removal_effect()</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Sull'esempio, ripartendo i 230 € con l'una o con l'altra misura:</p>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Touchpoint</th><th class="num">V(s)</th><th class="num">Revenue con V</th><th class="num">Removal effect</th><th class="num">Revenue con removal</th></tr></thead>
+        <tbody>
+          <tr><td>Search</td><td class="num">47,50</td><td class="num">126,08</td><td class="num">82,6%</td><td class="num">97,22</td></tr>
+          <tr><td>Email</td><td class="num">40,14</td><td class="num">52,81</td><td class="num">62,8%</td><td class="num">73,94</td></tr>
+          <tr><td>Social</td><td class="num">25,56</td><td class="num">51,11</td><td class="num">50,0%</td><td class="num">58,84</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <ul>
+      <li><strong>V premia la vicinanza all'acquisto.</strong> Search vale molto perché è l'ultimo passo prima di comprare. Social vale poco perché è lontano dalla conversione, anche se apre la maggior parte dei percorsi.</li>
+      <li><strong>Il removal effect premia chi è indispensabile.</strong> Senza Social spariscono J1, J2 e J7 (170 € su 230), quindi Social sale da 51 a 59 €. Search scende da 126 a 97, perché parte delle sue conversioni passa anche da altri canali.</li>
+    </ul>
+    <p>Un canale che compare sempre subito prima dell'acquisto, come il retargeting, prende con V molto credito anche se non causa nulla. Il removal effect distribuisce il credito in modo più uniforme sul percorso.</p>
+    <h3>Quale usare</h3>
+    <ul>
+      <li><strong>Removal effect</strong> per ripartire il budget tra canali: quanto conta ogni canale nel complesso. Per l'attribuzione è la misura da usare (<code>how='removal_effect'</code>).</li>
+      <li><strong>Valori iET</strong> per decisioni sul singolo cliente in un dato momento: quanto vale un utente appena arrivato da Email, quanto offrire in un'asta di retargeting, quale canale proporre dopo.</li>
+    </ul>
+    <p class="note">Nessuna delle due misura l'effetto incrementale. I removal effect grezzi sono quote relative tra canali: sommati superano il 100%, perché la stessa conversione dipende da più canali, e non vanno presentati come "revenue a rischio".</p>
+  </section>
+
+  <section>
     <h2><span class="n">9</span>Attribuzione riga per riga</h2>
-    <p><code>compute_attribution</code> divide il revenue di ogni percorso tra le sue righe, in proporzione al peso del touchpoint: il valore iET (<code>how='attribution_values'</code>) oppure il removal effect (<code>how='removal_effect'</code>). I percorsi senza conversione ricevono 0.</p>
+    <p><code>compute_attribution</code> divide il revenue di ogni percorso tra le sue righe, in proporzione al peso del touchpoint: il removal effect (<code>how='removal_effect'</code>, il default) oppure il valore iET (<code>how='attribution_values'</code>). I percorsi senza conversione ricevono 0.</p>
     <div class="panel">
       <table>
         <thead><tr><th>Percorso</th><th>Riga</th><th class="num">Peso (removal)</th><th class="num">Quota</th><th class="num">Attribuzione</th></tr></thead>
